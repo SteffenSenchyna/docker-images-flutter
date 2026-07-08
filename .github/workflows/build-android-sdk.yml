@@ -1,0 +1,40 @@
+name: "Build Android SDK"
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "android-sdk/**"
+      - ".github/workflows/build-android-sdk.yml"
+  # Manual runs — also how you bootstrap the base image before the first Flutter build.
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # lets GITHUB_TOKEN push to ghcr.io for this repo
+    steps:
+      - uses: actions/checkout@v7
+
+      # Register QEMU so the amd64 runner can also build the linux/arm64 image.
+      - uses: docker/setup-qemu-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: |
+          docker buildx create --name multibuilder --driver docker-container --bootstrap --use
+          docker buildx build \
+            --builder multibuilder \
+            --platform linux/amd64,linux/arm64 \
+            --tag ghcr.io/steffensenchyna/android-sdk:36 \
+            --tag ghcr.io/steffensenchyna/android-sdk:latest \
+            --push \
+            android-sdk

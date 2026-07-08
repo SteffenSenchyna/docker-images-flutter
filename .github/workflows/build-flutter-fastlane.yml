@@ -1,0 +1,50 @@
+name: "Build Flutter Fastlane"
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "flutter-fastlane/**"
+      - ".github/workflows/build-flutter-fastlane.yml"
+  # Rebuild automatically whenever the Flutter image is republished, so both the
+  # :stable tag and the pinned :<version> tag stay in sync with the Flutter image.
+  workflow_run:
+    workflows: [ "Build Flutter" ]
+    types: [ completed ]
+    branches: [ main ]
+  # Manual runs — e.g. to rebuild on top of a freshly published Flutter image.
+  workflow_dispatch:
+
+jobs:
+  build:
+    # For workflow_run triggers, only proceed if the upstream Flutter build succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # lets GITHUB_TOKEN push to ghcr.io for this repo
+    steps:
+      - uses: actions/checkout@v7
+
+      # Register QEMU so the amd64 runner can also build the linux/arm64 image.
+      - uses: docker/setup-qemu-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: |
+          version="$(jq -r '.stable' versions.json)"
+          docker buildx create --name multibuilder --driver docker-container --bootstrap --use
+          docker buildx build \
+            --builder multibuilder \
+            --platform linux/amd64,linux/arm64 \
+            --tag "ghcr.io/steffensenchyna/flutter-fastlane:stable" \
+            --tag "ghcr.io/steffensenchyna/flutter-fastlane:latest" \
+            --tag "ghcr.io/steffensenchyna/flutter-fastlane:${version}" \
+            --push \
+            flutter-fastlane

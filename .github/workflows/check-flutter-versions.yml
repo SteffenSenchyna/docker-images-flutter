@@ -1,0 +1,27 @@
+name: "Check Flutter versions"
+on:
+  schedule:
+    # Every 2 hours
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+jobs:
+  check_versions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # jq and curl are preinstalled on ubuntu-latest.
+      - name: Check for new Flutter versions
+        run: sh scripts/update_flutter_versions.sh
+
+      # Create a Pull Request if versions.json changed.
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "chore: Update Flutter version"
+          title: "chore: Update Flutter version"
+          branch: "chore/update-flutter-version"

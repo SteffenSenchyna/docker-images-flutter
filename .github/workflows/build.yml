@@ -1,0 +1,59 @@
+name: "Build Flutter"
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "sdk/**"
+      - "versions.json"
+      - "build.sh"
+      - ".github/workflows/build.yml"
+  # Rebuild automatically whenever the Android SDK base image is republished,
+  # so the Flutter image always sits on the latest base.
+  workflow_run:
+    workflows: [ "Build Android SDK" ]
+    types: [ completed ]
+    branches: [ main ]
+  # Allow manual runs (e.g. to rebuild without a version change).
+  workflow_dispatch:
+
+jobs:
+  # Derive the build matrix from versions.json so it stays the single source of truth.
+  prepare:
+    # For workflow_run triggers, only proceed if the upstream build succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      channels: ${{ steps.channels.outputs.list }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: channels
+        run: echo "list=$(jq -c 'keys' versions.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # lets GITHUB_TOKEN push to ghcr.io for this repo
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ${{ fromJSON(needs.prepare.outputs.channels) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Register QEMU so the amd64 runner can also build the linux/arm64 image.
+      - uses: docker/setup-qemu-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        env:
+          PUSH: "true"
+        run: ./build.sh ${{ matrix.channel }}
