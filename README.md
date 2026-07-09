@@ -1,6 +1,8 @@
 # Docker Images for [Flutter](https://flutter.dev/)
 
-[![Build Status][build_badge]][build_link]
+[![Build Flutter][build_badge]][build_link]
+[![Build Android SDK][android_badge]][android_link]
+[![Build Flutter Fastlane][fastlane_badge]][fastlane_link]
 
 Multi-arch (`linux/amd64`, `linux/arm64`) Docker images for [Flutter](https://flutter.dev/),
 published to [GitHub Container Registry](#github-container-registry) as
@@ -120,3 +122,11 @@ docker buildx build --load --tag ghcr.io/steffensenchyna/android-sdk:36 android-
 [build_badge]: https://github.com/SteffenSenchyna/docker-images-flutter/actions/workflows/build.yml/badge.svg
 
 [build_link]: https://github.com/SteffenSenchyna/docker-images-flutter/actions/workflows/build.yml
+
+[android_badge]: https://github.com/SteffenSenchyna/docker-images-flutter/actions/workflows/build-android-sdk.yml/badge.svg
+
+[android_link]: https://github.com/SteffenSenchyna/docker-images-flutter/actions/workflows/build-android-sdk.yml
+
+[fastlane_badge]: https://github.com/SteffenSenchyna/docker-images-flutter/actions/workflows/build-flutter-fastlane.yml/badge.svg
+
+[fastlane_link]: https://github.com/SteffenSenchyna/docker-images-flutter/actions/workflows/build-flutter-fastlane.yml
