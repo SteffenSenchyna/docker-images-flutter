@@ -6,12 +6,6 @@ Multi-arch (`linux/amd64`, `linux/arm64`) Docker images for [Flutter](https://fl
 published to [GitHub Container Registry](#github-container-registry) as
 `ghcr.io/steffensenchyna/flutter`.
 
-This is a self-hosted fork of
-[cirruslabs/docker-images-flutter](https://github.com/cirruslabs/docker-images-flutter).
-It builds and publishes its own images via GitHub Actions rather than Cirrus CI,
-including its own Android SDK base image (so it no longer depends on any
-`cirruslabs` image).
-
 This repo publishes three packages:
 
 | Package                                                                                                                                | Built from                                                   | Rebuilt                                           |
@@ -72,7 +66,10 @@ Four GitHub Actions workflows keep everything current:
   2 hours, updates `versions.json` with the newest stable/beta releases, and opens a
   pull request if anything changed.
 - **[Build Flutter](.github/workflows/build.yml)** runs on every push to `main`
-  that touches the Flutter image, builds each channel in parallel, and publishes to GHCR.
+  that touches the Flutter image. It builds each channel for `linux/amd64` and
+  `linux/arm64` on **native runners** (no QEMU — Flutter's Dart VM aborts under
+  emulation), pushes each architecture by digest, then merges them into a single
+  multi-arch manifest per channel and publishes to GHCR.
 - **[Build Android SDK](.github/workflows/build-android-sdk.yml)** runs only
   when `android-sdk/**` changes (or manually), and publishes the base image.
 - **[Build Flutter Fastlane](.github/workflows/build-flutter-fastlane.yml)** runs when
@@ -107,6 +104,11 @@ PUSH=true ./build.sh stable
 Local builds default to your host architecture and are loaded into Docker. Setting
 `PUSH=true` switches to a multi-arch build and pushes to the registry, which requires
 a prior `docker login ghcr.io` with a token that has the `write:packages` scope.
+
+Note: a local `PUSH=true` build cross-compiles the non-host architecture under QEMU,
+and Flutter's Dart VM is unreliable under emulation (it can abort mid-build). For
+publishing multi-arch images, prefer the CI workflow, which builds each architecture
+on a native runner. Local single-arch `--load` builds are unaffected.
 
 `build.sh` builds the Flutter image, which pulls the published Android SDK base. To
 build the base image itself, use Docker directly:

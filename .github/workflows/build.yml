@@ -17,6 +17,9 @@ on:
   # Allow manual runs (e.g. to rebuild without a version change).
   workflow_dispatch:
 
+env:
+  IMAGE: ghcr.io/steffensenchyna/flutter
+
 jobs:
   # Derive the build matrix from versions.json so it stays the single source of truth.
   prepare:
@@ -30,9 +33,13 @@ jobs:
       - id: channels
         run: echo "list=$(jq -c 'keys' versions.json)" >> "$GITHUB_OUTPUT"
 
+  # Build each channel for each architecture on a NATIVE runner (no QEMU). The
+  # Dart VM aborts under aarch64 emulation, so linux/arm64 must build on real ARM
+  # hardware. Each job pushes its single-arch image by digest; the merge job below
+  # assembles the per-channel multi-arch manifest from those digests.
   build:
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     permissions:
       contents: read
       packages: write # lets GITHUB_TOKEN push to ghcr.io for this repo
@@ -40,20 +47,104 @@ jobs:
       fail-fast: false
       matrix:
         channel: ${{ fromJSON(needs.prepare.outputs.channels) }}
+        platform: [ linux/amd64, linux/arm64 ]
     steps:
       - uses: actions/checkout@v7
 
-      # Register QEMU so the amd64 runner can also build the linux/arm64 image.
-      - uses: docker/setup-qemu-action@v4
+      - name: Resolve Flutter version
+        id: version
+        run: echo "version=$(jq -r --arg c '${{ matrix.channel }}' '.[$c]' versions.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Sanitize platform for artifact name
+        id: platform
+        env:
+          platform: ${{ matrix.platform }}
+        run: echo "pair=${platform//\//-}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: sdk
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            flutter_version=${{ steps.version.outputs.version }}
+          # Single-platform manifest per digest keeps the merge step clean.
+          provenance: false
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.channel }}-${{ steps.platform.outputs.pair }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Combine the per-architecture digests for each channel into one multi-arch
+  # manifest and tag it :<channel> and :<version>.
+  merge:
+    needs: [ prepare, build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: ${{ fromJSON(needs.prepare.outputs.channels) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve Flutter version
+        id: version
+        run: echo "version=$(jq -r --arg c '${{ matrix.channel }}' '.[$c]' versions.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Compute version tag
+        id: tag
         env:
-          PUSH: "true"
-        run: ./build.sh ${{ matrix.channel }}
+          version: ${{ steps.version.outputs.version }}
+        # Docker tags cannot contain '+', which Flutter uses for build metadata.
+        run: echo "version_tag=${version//+/-}" >> "$GITHUB_OUTPUT"
+
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: digest-${{ matrix.channel }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${{ matrix.channel }}" \
+            --tag "${IMAGE}:${{ steps.tag.outputs.version_tag }}" \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Inspect
+        run: docker buildx imagetools inspect "${IMAGE}:${{ matrix.channel }}"

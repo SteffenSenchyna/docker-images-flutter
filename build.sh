@@ -3,7 +3,9 @@
 # Build (and optionally push) the Flutter Docker images.
 #
 # Channel versions are read from versions.json (the single source of truth).
-# This same script is used locally and in CI, so the two never drift.
+# This is the local build entrypoint. CI builds each architecture on native
+# runners (Flutter's Dart VM aborts under QEMU emulation) but reads the same
+# versions.json, so local and CI never drift on which version each tag ships.
 #
 # Usage:
 #   ./build.sh [CHANNEL...]              Build the given channels for the host
