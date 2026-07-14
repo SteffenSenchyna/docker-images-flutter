@@ -10,7 +10,7 @@ LABEL org.opencontainers.image.source=https://github.com/SteffenSenchyna/docker-
 
 # Overridable at build time. Defaults track Android API 37.
 ARG android_sdk_tools_version=13114758
-ARG android_platform_version=37
+ARG android_platform_version=37.0
 ARG android_build_tools_version=37.0.0
 ARG android_ndk_version=28.2.13676358
 ARG android_cmake_version=3.22.1
