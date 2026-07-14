@@ -8,15 +8,19 @@ FROM eclipse-temurin:17-jdk
 
 LABEL org.opencontainers.image.source=https://github.com/SteffenSenchyna/docker-images-flutter
 
-# Overridable at build time. Defaults track Android API 36.
+# Overridable at build time. Defaults track Android API 37.
 ARG android_sdk_tools_version=13114758
-ARG android_platform_version=36
-ARG android_build_tools_version=36.0.0
+ARG android_platform_version=37
+ARG android_build_tools_version=37.0.0
+ARG android_ndk_version=28.2.13676358
+ARG android_cmake_version=3.22.1
 
 ENV ANDROID_HOME=/opt/android-sdk-linux \
     ANDROID_SDK_TOOLS_VERSION=$android_sdk_tools_version \
     ANDROID_PLATFORM_VERSION=$android_platform_version \
-    ANDROID_BUILD_TOOLS_VERSION=$android_build_tools_version
+    ANDROID_BUILD_TOOLS_VERSION=$android_build_tools_version \
+    ANDROID_NDK_VERSION=$android_ndk_version \
+    ANDROID_CMAKE_VERSION=$android_cmake_version
 ENV ANDROID_SDK_ROOT=$ANDROID_HOME
 ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator
 
@@ -44,4 +48,6 @@ RUN yes | sdkmanager --sdk_root="${ANDROID_HOME}" --licenses > /dev/null \
     && sdkmanager --sdk_root="${ANDROID_HOME}" \
         "platform-tools" \
         "platforms;android-${ANDROID_PLATFORM_VERSION}" \
-        "build-tools;${ANDROID_BUILD_TOOLS_VERSION}"
+        "build-tools;${ANDROID_BUILD_TOOLS_VERSION}" \
+        "ndk;${ANDROID_NDK_VERSION}" \
+        "cmake;${ANDROID_CMAKE_VERSION}"

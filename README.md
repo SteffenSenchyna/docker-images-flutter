@@ -10,10 +10,10 @@ published to [GitHub Container Registry](#github-container-registry) as
 
 This repo publishes three packages:
 
-| Package                                                                                                                                | Built from                                                   | Rebuilt                                           |
-|----------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|---------------------------------------------------|
-| [`ghcr.io/steffensenchyna/flutter`](https://github.com/SteffenSenchyna/docker-images-flutter/pkgs/container/flutter)                   | [`sdk/Dockerfile`](sdk/Dockerfile)                           | On every Flutter version bump                     |
-| [`ghcr.io/steffensenchyna/android-sdk`](https://github.com/SteffenSenchyna/docker-images-flutter/pkgs/container/android-sdk)           | [`android-sdk/Dockerfile`](android-sdk/Dockerfile)           | Only when the Android SDK changes (rare)          |
+| Package                                                                                                                                | Built from                                               | Rebuilt                                           |
+|----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------|---------------------------------------------------|
+| [`ghcr.io/steffensenchyna/flutter`](https://github.com/SteffenSenchyna/docker-images-flutter/pkgs/container/flutter)                   | [`sdk/Dockerfile`](sdk/Dockerfile)                       | On every Flutter version bump                     |
+| [`ghcr.io/steffensenchyna/android-sdk`](https://github.com/SteffenSenchyna/docker-images-flutter/pkgs/container/android-sdk)           | [`android-sdk/Dockerfile`](android-sdk/Dockerfile)      | Only when the Android SDK changes (rare)          |
 | [`ghcr.io/steffensenchyna/flutter-fastlane`](https://github.com/SteffenSenchyna/docker-images-flutter/pkgs/container/flutter-fastlane) | [`flutter-fastlane/Dockerfile`](flutter-fastlane/Dockerfile) | When the Flutter image or its own tooling changes |
 
 They stack: `android-sdk` → `flutter` (adds Flutter) → `flutter-fastlane` (adds
@@ -116,7 +116,7 @@ on a native runner. Local single-arch `--load` builds are unaffected.
 build the base image itself, use Docker directly:
 
 ```bash
-docker buildx build --load --tag ghcr.io/steffensenchyna/android-sdk:36 android-sdk
+docker buildx build --load --tag ghcr.io/steffensenchyna/android-sdk:37 android-sdk
 ```
 
 [build_badge]: https://github.com/SteffenSenchyna/docker-images-flutter/actions/workflows/build.yml/badge.svg
